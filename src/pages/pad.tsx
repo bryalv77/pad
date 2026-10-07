@@ -48,8 +48,12 @@ export default function PadPage() {
   }, [navigate])
 
   async function copyLink() {
-    await navigator.clipboard.writeText(window.location.href)
-    toast.success('Link copied')
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast.success('Link copied')
+    } catch {
+      toast.error('Could not copy the link')
+    }
   }
 
   if (state.kind !== 'ready') {

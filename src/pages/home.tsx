@@ -13,7 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { createPad, DURATIONS, getPad, isValidId, normalizeId, type Duration } from '@/lib/pads'
+import {
+  createPad,
+  DURATIONS,
+  getPad,
+  isValidId,
+  MAX_PADS_PER_USER,
+  normalizeId,
+  type Duration,
+} from '@/lib/pads'
+
+const CREATE_ERRORS = {
+  taken: 'That pad name is already taken. Choose another, or open it.',
+  limit: `You can keep up to ${MAX_PADS_PER_USER} pads at a time. Wait for some to expire.`,
+  slow: 'You are creating pads too quickly. Wait a few seconds and try again.',
+} as const
 
 export default function Home() {
   const navigate = useNavigate()
@@ -27,14 +41,15 @@ export default function Home() {
   async function run(action: 'create' | 'open') {
     setError('')
     if (!isValidId(padId)) {
-      setError('Use 3–40 characters: letters, numbers and hyphens (not at the start or end).')
+      setError('Use 5–40 characters: letters, numbers and hyphens (not at the start or end).')
       return
     }
     setBusy(true)
     try {
       if (action === 'create') {
-        if (!(await createPad(padId, duration))) {
-          setError('That pad name is already taken. Choose another, or open it.')
+        const result = await createPad(padId, duration)
+        if (result !== 'created') {
+          setError(CREATE_ERRORS[result])
           return
         }
       } else if (!(await getPad(padId))) {
@@ -42,8 +57,10 @@ export default function Home() {
         return
       }
       navigate(`/${padId}`)
-    } catch {
-      setError('Something went wrong. Please try again.')
+    } catch (e) {
+      console.error('[pad] request failed', e)
+      const code = (e as { code?: string })?.code
+      setError(`Something went wrong${code ? ` (${code})` : ''}. Please try again.`)
     } finally {
       setBusy(false)
     }

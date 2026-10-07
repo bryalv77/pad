@@ -6,6 +6,7 @@ import {
   AlignRight,
   Bold,
   Code,
+  ImagePlus,
   Italic,
   Link as LinkIcon,
   List,
@@ -51,7 +52,7 @@ function Tool({
 
 const Sep = () => <Separator orientation="vertical" className="mx-1 h-5" />
 
-export function Toolbar({ editor }: { editor: Editor }) {
+export function Toolbar({ editor, onPickImage }: { editor: Editor; onPickImage: () => void }) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -115,6 +116,7 @@ export function Toolbar({ editor }: { editor: Editor }) {
       <Tool label="Numbered list" active={s.ordered} onClick={() => run().toggleOrderedList().run()}><ListOrdered /></Tool>
       <Tool label="Checklist" active={s.task} onClick={() => run().toggleTaskList().run()}><ListChecks /></Tool>
       <Tool label="Quote" active={s.quote} onClick={() => run().toggleBlockquote().run()}><Quote /></Tool>
+      <Tool label="Insert image" onClick={onPickImage}><ImagePlus /></Tool>
       <Tool label="Divider" onClick={() => run().setHorizontalRule().run()}><Minus /></Tool>
     </div>
   )

@@ -2,18 +2,50 @@
   "rules": {
     ".read": false,
     ".write": false,
+    "quota": {
+      "$uid": {
+        ".read": "auth != null && $uid === auth.uid",
+        ".write": "auth != null && $uid === auth.uid",
+        ".validate": "newData.hasChildren(['count'])",
+        "count": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20 && newData.val() <= (data.exists() ? data.val() : 0) + 1"
+        },
+        "last": {
+          ".validate": "newData.val() == now && (!data.exists() || data.val() + 10000 <= now)"
+        },
+        "$other": {
+          ".validate": false
+        },
+        "pads": {
+          "$p": {
+            ".validate": "newData.isNumber()"
+          }
+        }
+      }
+    },
     "pads": {
       "$padId": {
-        ".read": true,
-        ".write": true,
-        ".validate": "$padId.matches(/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/) && (!newData.exists() || newData.hasChildren(['content', 'createdAt', 'expiresAt', 'updatedAt']))",
-        "content": { ".validate": "newData.isString() && newData.val().length <= 500000" },
-        "createdAt": { ".validate": "newData.isNumber()" },
-        "updatedAt": { ".validate": "newData.isNumber()" },
-        "expiresAt": {
-          ".validate": "newData.isNumber() && (!data.exists() || newData.val() == data.val() || (data.val() != 0 && data.val() <= now))"
+        ".read": "auth != null && (data.exists() && (data.child('expiresAt').val() == 0 || data.child('expiresAt').val() > now))",
+        ".write": "auth != null && ((!data.exists() || (data.child('expiresAt').val() != 0 && data.child('expiresAt').val() <= now)) || ((data.exists() && (data.child('expiresAt').val() == 0 || data.child('expiresAt').val() > now)) && (newData.exists() || data.child('owner').val() == auth.uid)))",
+        ".validate": "$padId.matches(/^[a-z0-9][a-z0-9-]{3,38}[a-z0-9]$/) && (!newData.exists() || newData.hasChildren(['content', 'createdAt', 'expiresAt', 'updatedAt', 'owner']))",
+        "content": {
+          ".validate": "newData.isString() && newData.val().length <= 1000000"
         },
-        "$other": { ".validate": false }
+        "updatedAt": {
+          ".validate": "newData.val() == now && ((!data.parent().exists() || (data.parent().child('expiresAt').val() != 0 && data.parent().child('expiresAt').val() <= now)) || data.val() + 1000 <= now)"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && ((!data.parent().exists() || (data.parent().child('expiresAt').val() != 0 && data.parent().child('expiresAt').val() <= now)) ? newData.val() == now : newData.val() == data.val())"
+        },
+        "owner": {
+          ".validate": "(!data.parent().exists() || (data.parent().child('expiresAt').val() != 0 && data.parent().child('expiresAt').val() <= now)) ? (newData.val() == auth.uid && newData.parent().parent().parent().child('quota').child(auth.uid).child('last').val() == now && newData.parent().parent().parent().child('quota').child(auth.uid).child('count').val() == (root.child('quota').child(auth.uid).child('count').exists() ? root.child('quota').child(auth.uid).child('count').val() : 0) + 1) : newData.val() == data.val()"
+        },
+        "expiresAt": {
+          ".validate": "newData.isNumber() && ((!data.parent().exists() || (data.parent().child('expiresAt').val() != 0 && data.parent().child('expiresAt').val() <= now)) ? (newData.val() == 0 || (newData.val() > now && newData.val() <= now + 5270400000)) : newData.val() == data.val())"
+        },
+        "$other": {
+          ".validate": false
+        }
       }
     }
   }
