@@ -10,7 +10,9 @@ test('production home page serves its SEO metadata and icons', async ({ page, re
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${SITE}/`)
   await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', /og-image\.png/)
 
-  for (const path of ['/favicon.ico', '/apple-touch-icon.png', '/manifest.json', '/robots.txt', '/sitemap.xml']) {
+  await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveCount(2)
+
+  for (const path of ['/favicon-32.png?v=2', '/apple-touch-icon.png', '/manifest.json', '/robots.txt', '/sitemap.xml']) {
     const response = await request.get(`${SITE}${path}`)
     expect(response.ok(), `${path} should be served`).toBe(true)
   }

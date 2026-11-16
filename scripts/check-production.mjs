@@ -53,6 +53,8 @@ try {
 const requiredAssets = [
   'favicon.ico',
   'favicon.svg',
+  'favicon-16.png',
+  'favicon-32.png',
   'apple-touch-icon.png',
   'icon-192.png',
   'icon-512.png',
@@ -83,10 +85,10 @@ const metaChecks = [
   ['Open Graph title', 'property="og:title"'],
   ['Open Graph image', 'property="og:image"'],
   ['Twitter card', 'name="twitter:card"'],
-  ['SVG favicon', 'type="image/svg+xml" href="/favicon.svg"'],
-  ['ICO favicon', 'href="/favicon.ico"'],
+  ['PNG favicon 32', 'rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=2"'],
+  ['PNG favicon 16', 'rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png?v=2"'],
   ['apple-touch-icon', 'rel="apple-touch-icon"'],
-  ['web app manifest', 'href="/manifest.json"'],
+  ['web app manifest', 'href="/manifest.json?v=2"'],
 ]
 for (const [label, needle] of metaChecks) {
   record(label, contains(html, needle))
@@ -139,8 +141,8 @@ if (site) {
       'name="description"',
       'rel="canonical"',
       'property="og:image"',
-      'href="/favicon.ico"',
-      'href="/manifest.json"',
+      'href="/favicon-32.png?v=2"',
+      'href="/manifest.json?v=2"',
     ]
     for (const needle of needles) record(`home has ${needle}`, contains(home.body, needle))
 
@@ -152,7 +154,7 @@ if (site) {
       record('entry chunk referenced', false)
     }
 
-    for (const asset of ['/favicon.ico', '/apple-touch-icon.png', '/icon-192.png', '/manifest.json', '/og-image.png']) {
+    for (const asset of ['/favicon.ico', '/favicon-32.png?v=2', '/apple-touch-icon.png', '/icon-192.png', '/manifest.json', '/og-image.png']) {
       await fetchChecked(asset)
     }
 
