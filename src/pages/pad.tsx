@@ -1,9 +1,10 @@
-import { AlertCircle, Check, Cloud, Copy, Loader2 } from 'lucide-react'
+import { Cloud, Copy, Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Header } from '@/components/header'
 import { PadEditor, type SaveStatus } from '@/components/pad-editor'
+import { SaveIndicator } from '@/components/save-indicator'
 import { Button } from '@/components/ui/button'
 import { getPad, isValidId, type Pad } from '@/lib/pads'
 
@@ -13,12 +14,6 @@ function expiryLabel(expiresAt: number) {
   if (expiresAt === 0) return 'Never expires'
   const hours = Math.max(1, Math.round((expiresAt - Date.now()) / 36e5))
   return hours < 48 ? `Expires in ${hours}h` : `Expires in ${Math.round(hours / 24)} days`
-}
-
-const statusView: Record<SaveStatus, { icon: React.ReactNode; text: string }> = {
-  saved: { icon: <Check className="size-3.5" />, text: 'Saved' },
-  saving: { icon: <Loader2 className="size-3.5 animate-spin" />, text: 'Saving…' },
-  error: { icon: <AlertCircle className="size-3.5 text-destructive" />, text: 'Not saved' },
 }
 
 export default function PadPage() {
@@ -83,7 +78,6 @@ export default function PadPage() {
     )
   }
 
-  const { icon, text } = statusView[status]
   return (
     <div className="flex min-h-svh flex-col">
       <Header>
@@ -92,10 +86,7 @@ export default function PadPage() {
           <span className="font-medium text-foreground">{id}</span>
           <span>· {expiryLabel(state.pad.expiresAt)}</span>
         </span>
-        <span className="mr-1 flex items-center gap-1 text-xs text-muted-foreground">
-          {icon}
-          {text}
-        </span>
+        <SaveIndicator status={status} />
         <Button variant="outline" size="sm" onClick={() => void copyLink()}>
           <Copy /> Share
         </Button>
@@ -103,6 +94,9 @@ export default function PadPage() {
       <PadEditor
         id={id}
         initialContent={state.pad.content}
+        initialMarkdown={state.pad.markdown}
+        initialFont={state.pad.font}
+        initialMarkdownMode={state.pad.markdownMode}
         onStatus={setStatus}
         onGone={onGone}
       />

@@ -29,3 +29,10 @@ dist-ssr
 !.env.example
 .firebase/
 firebase-debug.log*
+
+# Lighthouse output
+lighthouse-report.html
+
+# Playwright output
+playwright-report/
+test-results/

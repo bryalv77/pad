@@ -1,0 +1,7 @@
+# Only the landing page has public, indexable content.
+# Pad pages (/<id>) contain user content and are meant to stay private.
+User-agent: *
+Allow: /$
+Disallow: /
+
+Sitemap: https://pad.bryanalvarado.com/sitemap.xml

@@ -31,6 +31,15 @@
         "content": {
           ".validate": "newData.isString() && newData.val().length <= 1000000"
         },
+        "markdown": {
+          ".validate": "newData.isString() && newData.val().length <= 1000000"
+        },
+        "markdownMode": {
+          ".validate": "newData.isBoolean()"
+        },
+        "font": {
+          ".validate": "newData.isString() && newData.val().matches(/^(default|arial|verdana|tahoma|trebuchet|georgia|times|courier|comic|garamond)$/)"
+        },
         "updatedAt": {
           ".validate": "newData.val() == now && ((!data.parent().exists() || (data.parent().child('expiresAt').val() != 0 && data.parent().child('expiresAt').val() <= now)) || data.val() + 1000 <= now)"
         },

@@ -100,7 +100,7 @@ export default function Home() {
               <div className="flex flex-col gap-2">
                 <Label>Keep it for</Label>
                 <Select value={duration} onValueChange={(v) => setDuration(v as Duration)}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger aria-label="How long to keep the pad" className="w-full">
                     <SelectValue>
                       {DURATIONS.find((d) => d.value === duration)?.label}
                     </SelectValue>

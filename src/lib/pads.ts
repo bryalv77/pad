@@ -1,5 +1,6 @@
 import { get, onValue, ref, serverTimestamp, update } from 'firebase/database'
 import { db, ensureUser } from '@/lib/firebase'
+import { DEFAULT_FONT, type FontId } from '@/lib/fonts'
 
 export type Duration = '1d' | '60d' | 'forever'
 
@@ -11,6 +12,10 @@ export const DURATIONS: { value: Duration; label: string }[] = [
 
 export interface Pad {
   content: string
+  /** Raw Markdown source, kept in sync with content when markdown mode is used. */
+  markdown: string
+  markdownMode: boolean
+  font: FontId
   createdAt: number
   updatedAt: number
   /** Epoch ms, or 0 when the pad never expires. */
@@ -81,6 +86,9 @@ export async function createPad(id: string, duration: Duration): Promise<CreateR
     await update(ref(db), {
       [`pads/${id}`]: {
         content: '',
+        markdown: '',
+        markdownMode: false,
+        font: DEFAULT_FONT,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         expiresAt,
@@ -98,8 +106,15 @@ export async function createPad(id: string, duration: Duration): Promise<CreateR
   }
 }
 
-export const savePad = (id: string, content: string) =>
-  update(padRef(id), { content, updatedAt: serverTimestamp() })
+export interface PadSave {
+  content: string
+  markdown: string
+  markdownMode: boolean
+  font: FontId
+}
+
+export const savePad = (id: string, data: PadSave) =>
+  update(padRef(id), { ...data, updatedAt: serverTimestamp() })
 
 /** Deletes the caller's expired pads and re-syncs their quota counter (once per tab session). */
 async function purgeOwnExpired(uid: string) {

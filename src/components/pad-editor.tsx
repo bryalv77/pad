@@ -1,4 +1,4 @@
-import { EditorContent, useEditor, type Editor } from '@tiptap/react'
+import { useEditor, type Editor } from '@tiptap/react'
 import Image from '@tiptap/extension-image'
 import Placeholder from '@tiptap/extension-placeholder'
 import TaskItem from '@tiptap/extension-task-item'
@@ -6,10 +6,13 @@ import TaskList from '@tiptap/extension-task-list'
 import TextAlign from '@tiptap/extension-text-align'
 import StarterKit from '@tiptap/starter-kit'
 import { onValue } from 'firebase/database'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Toolbar } from '@/components/toolbar'
-import { IMAGE_ACCEPT, ImageError, imageToDataUrl } from '@/lib/image'
+import { PadEditorSurface } from '@/components/pad-editor-surface'
+import { ImageError, imageToDataUrl } from '@/lib/image'
+import type { FontId } from '@/lib/fonts'
+import { markdownToHtml } from '@/lib/markdown'
+import { draftFromPad, toMarkdownMode, toRichMode, type PadDraft } from '@/lib/pad-format'
 import { isExpired, MAX_CONTENT, padRef, savePad, type Pad } from '@/lib/pads'
 
 export type SaveStatus = 'saved' | 'saving' | 'error'
@@ -17,6 +20,9 @@ export type SaveStatus = 'saved' | 'saving' | 'error'
 interface Props {
   id: string
   initialContent: string
+  initialMarkdown?: string
+  initialFont?: FontId
+  initialMarkdownMode?: boolean
   onStatus: (status: SaveStatus) => void
   onGone: () => void
 }
@@ -41,13 +47,54 @@ const imageFiles = (list?: FileList | null) =>
 
 const SAVE_DELAY = 1500 // the database rules allow one write per second per pad
 
-/** Rich-text editor kept in sync with a Realtime Database pad (last write wins). */
-export function PadEditor({ id, initialContent, onStatus, onGone }: Props) {
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+/** Rich-text or Markdown editor kept in sync with a Realtime Database pad (last write wins). */
+export function PadEditor({
+  id,
+  initialContent,
+  initialMarkdown,
+  initialFont,
+  initialMarkdownMode,
+  onStatus,
+  onGone,
+}: Props) {
+  const [draft, setDraft] = useState<PadDraft>(() =>
+    draftFromPad({
+      content: initialContent,
+      markdown: initialMarkdown,
+      font: initialFont,
+      markdownMode: initialMarkdownMode,
+    }),
+  )
+  const draftRef = useRef(draft)
   const dirty = useRef(false)
-  const lastSynced = useRef(initialContent)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const fileInput = useRef<HTMLInputElement>(null)
   const editorRef = useRef<Editor | null>(null)
+
+  const commit = useCallback(
+    (partial: Partial<PadDraft>) => {
+      const next = { ...draftRef.current, ...partial }
+      draftRef.current = next
+      setDraft(next)
+      dirty.current = true
+      onStatus('saving')
+      clearTimeout(timer.current)
+      timer.current = setTimeout(async () => {
+        try {
+          await savePad(id, draftRef.current)
+          dirty.current = false
+          onStatus('saved')
+        } catch {
+          onStatus('error')
+        }
+      }, SAVE_DELAY)
+    },
+    [id, onStatus],
+  )
+  const commitRef = useRef(commit)
+  useEffect(() => {
+    commitRef.current = commit
+  }, [commit])
 
   const editor = useEditor({
     extensions: [
@@ -74,24 +121,22 @@ export function PadEditor({ id, initialContent, onStatus, onGone }: Props) {
         return true
       },
     },
-    onUpdate: ({ editor }) => {
-      dirty.current = true
-      onStatus('saving')
-      clearTimeout(timer.current)
-      timer.current = setTimeout(async () => {
-        const html = editor.getHTML()
-        if (html.length > MAX_CONTENT) return onStatus('error')
-        try {
-          await savePad(id, html)
-          lastSynced.current = html
-          dirty.current = html !== editor.getHTML()
-          if (!dirty.current) onStatus('saved')
-        } catch {
-          onStatus('error')
-        }
-      }, SAVE_DELAY)
-    },
+    onUpdate: ({ editor: e }) => commitRef.current({ content: e.getHTML(), markdownMode: false }),
   })
+
+  function toggleMode() {
+    const next = draftRef.current.markdownMode ? toRichMode(draftRef.current) : toMarkdownMode(draftRef.current)
+    commit(next)
+    if (!next.markdownMode) editor?.commands.setContent(next.content, { emitUpdate: false })
+  }
+
+  function changeFont(font: FontId) {
+    commit({ font })
+  }
+
+  function changeMarkdown(markdown: string) {
+    commit({ markdown, content: markdownToHtml(markdown), markdownMode: true })
+  }
 
   // Live updates from other people editing the same pad.
   useEffect(() => {
@@ -99,33 +144,31 @@ export function PadEditor({ id, initialContent, onStatus, onGone }: Props) {
     return onValue(padRef(id), (snap) => {
       const pad = snap.val() as Pad | null
       if (!pad || isExpired(pad)) return onGone()
-      if (dirty.current || pad.content === lastSynced.current) return
-      lastSynced.current = pad.content
-      editor.commands.setContent(pad.content, { emitUpdate: false })
+      if (dirty.current) return
+      const next = draftFromPad(pad)
+      draftRef.current = next
+      setDraft(next)
+      if (!next.markdownMode) editor.commands.setContent(next.content, { emitUpdate: false })
     })
   }, [editor, id, onGone])
 
   useEffect(() => () => clearTimeout(timer.current), [])
+  useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
 
-  editorRef.current = editor
   if (!editor) return null
+
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col sm:p-4">
-      <div className="flex flex-1 flex-col overflow-hidden border bg-card shadow-sm sm:rounded-xl">
-        <input
-          ref={fileInput}
-          type="file"
-          accept={IMAGE_ACCEPT}
-          multiple
-          hidden
-          onChange={(e) => {
-            void insertImages(editor, imageFiles(e.target.files))
-            e.target.value = ''
-          }}
-        />
-        <Toolbar editor={editor} onPickImage={() => fileInput.current?.click()} />
-        <EditorContent editor={editor} className="flex flex-1 cursor-text flex-col" onClick={() => editor.commands.focus()} />
-      </div>
-    </div>
+    <PadEditorSurface
+      draft={draft}
+      editor={editor}
+      fileInput={fileInput}
+      onFontChange={changeFont}
+      onToggleMode={toggleMode}
+      onMarkdownChange={changeMarkdown}
+      onPickImage={() => fileInput.current?.click()}
+      onFiles={(files) => void insertImages(editor, imageFiles(files))}
+    />
   )
 }
