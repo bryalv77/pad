@@ -17,9 +17,28 @@ const app = initializeApp({
 const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
 if (siteKey) {
   if (import.meta.env.DEV) {
-    ;(self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true
+    // Bypasses reCAPTCHA locally. A token from the console can be pinned; unset mints a new one per session.
+    const debugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN as string | undefined
+    ;(self as unknown as { FIREBASE_APPCHECK_DEBUG_TOKEN?: string | boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN =
+      debugToken === 'false' ? false : !debugToken || debugToken === 'true' ? true : debugToken
   }
   initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true })
+} else {
+  console.error(
+    '[pad] VITE_RECAPTCHA_SITE_KEY is missing, so App Check is disabled. Enforced Firebase services will reject requests.',
+  )
+}
+
+/** App Check failures hide the real cause behind a Firebase error code; name the likely culprit. */
+function explainAppCheckFailure(error: unknown) {
+  const code = (error as { code?: string })?.code ?? ''
+  if (!/app-?check/i.test(code)) return
+  console.error(
+    `[pad] App Check could not verify ${location.origin}. ` +
+      'Add this domain to the allowed domains of the reCAPTCHA Enterprise key set in VITE_RECAPTCHA_SITE_KEY ' +
+      '(Google Cloud console → reCAPTCHA Enterprise → Keys).',
+    error,
+  )
 }
 
 export const auth = getAuth(app)
@@ -35,6 +54,7 @@ export function ensureUser(): Promise<string> {
     return user.uid
   })().catch((e) => {
     session = undefined
+    explainAppCheckFailure(e)
     throw e
   })
   return session

@@ -32,7 +32,11 @@ export const isExpired = (pad: Pad) => pad.expiresAt !== 0 && pad.expiresAt <= D
 
 export const padRef = (id: string) => ref(db, `pads/${id}`)
 
-const isDenied = (e: unknown) => (e as { code?: string })?.code?.includes('permission-denied')
+/** The database reports denials as `PERMISSION_DENIED` over the socket, but the REST path throws a bare "Permission denied" Error. */
+const isDenied = (e: unknown) => {
+  const { code, message } = e as { code?: string; message?: string }
+  return /permission[-_ ]?denied/i.test(`${code ?? ''} ${message ?? ''}`)
+}
 
 /** Returns the pad, or null if it doesn't exist or has expired (rules hide expired pads). */
 export async function getPad(id: string): Promise<Pad | null> {
