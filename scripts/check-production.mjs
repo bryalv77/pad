@@ -62,6 +62,8 @@ const requiredAssets = [
   'manifest.json',
   'robots.txt',
   'sitemap.xml',
+  '_headers',
+  '_redirects',
 ]
 for (const asset of requiredAssets) {
   try {

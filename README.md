@@ -44,7 +44,21 @@ The remaining Best Practices deductions are all inherent to Firebase App Check w
 
 ## Deploy
 
+Firebase (hosting + database rules):
+
 ```bash
 npm run build
 firebase deploy --only hosting,database --project pad-note
 ```
+
+Cloudflare Pages (free static hosting, direct upload — no Git connection needed):
+
+```bash
+npm run deploy:cf
+```
+
+The project is `pad` (`https://pad-anl.pages.dev`). `public/_redirects` keeps client-side
+routes working, and `public/_headers` carries the same security headers as Firebase Hosting.
+The Cloudflare build is static only — Firebase Auth, Database and App Check still run on
+Firebase, so `pad-anl.pages.dev` had to be added to the reCAPTCHA key's allowed domains and
+to Firebase Auth → Settings → Authorized domains.
